@@ -1,0 +1,10 @@
+{
+  "name": "Art Slicer Mobile",
+  "short_name": "Art Slicer",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b0d10",
+  "theme_color": "#0b0d10",
+  "description": "Local mobile artwork slicer for Letter/A4 print tiles.",
+  "icons": []
+}

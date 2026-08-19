@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Art Slicer">
+<meta name="theme-color" content="#0b0d10">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Art Slicer Mobile</title>
+<style>
+:root{
+  --bg:#0b0d10; --panel:#11151a; --panel2:#171b21; --line:#2b323b;
+  --text:#eef2f6; --muted:#929baa; --accent:#edf1f5; --ink:#0b0d10;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;
+}
+.wrap{max-width:760px;margin:auto;padding:22px 16px 40px}
+h1{font-size:28px;margin:0 0 4px;font-weight:800;letter-spacing:.02em}
+.sub{color:var(--muted);font-size:14px;margin-bottom:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+.card h2{font-size:13px;color:#bdc5cf;letter-spacing:.08em;margin:0 0 12px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+label{font-size:13px;color:#c7ced7;display:block;margin-bottom:6px}
+input,select,button{
+  width:100%;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--text);padding:12px;font-size:16px;
+}
+input[type=file]{padding:10px}
+.check{display:flex;gap:9px;align-items:center;margin:10px 0;color:#d8dde5}
+.check input{width:auto;transform:scale(1.2)}
+button.primary{background:var(--accent);color:var(--ink);border:0;font-weight:800;padding:15px}
+button.secondary{font-weight:700}
+button:disabled{opacity:.45}
+#preview{
+  width:100%;max-height:360px;object-fit:contain;background:#090b0e;
+  border:1px solid var(--line);border-radius:10px;display:none
+}
+.stats{font-size:13px;line-height:1.5;color:#b9c2cc;white-space:pre-line}
+.warn{font-size:12px;color:#d1b980;line-height:1.45}
+.good{color:#9ec8a3}
+.progress{height:8px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#0d1014;margin:10px 0}
+.bar{height:100%;width:0;background:#d9e1ea;transition:width .15s}
+footer{color:#737d89;font-size:11px;margin-top:20px;line-height:1.5}
+.modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;
+  align-items:center;justify-content:center;padding:18px;z-index:999;
+}
+.modalCard{
+  width:min(520px,100%);background:#11151a;border:1px solid #2b323b;
+  border-radius:16px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.45)
+}
+.modalCard h3{margin:0 0 10px;font-size:18px}
+.modalActions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.modalActions button{margin:0}
+
+@media(max-width:520px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ART SLICER MOBILE</h1>
+  <div class="sub">Local iPhone/iPad artwork tiling • Web App. Your image never leaves the device.</div>
+
+  <div class="card">
+    <h2>IMAGE</h2>
+    <input id="file" type="file" accept="image/*">
+    <div id="imginfo" class="stats" style="margin-top:10px"></div>
+    <div id="loadWrap" style="display:none;margin-top:12px">
+      <div class="progress"><div id="loadBar" class="bar"></div></div>
+      <div id="loadStatus" class="stats">Preparing preview…</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>FINAL ART SIZE</h2>
+    <div class="row">
+      <div>
+        <label>Units</label>
+        <select id="unit"><option value="cm">cm</option><option value="in">inches</option></select>
+      </div>
+      <div>
+        <label>DPI</label>
+        <select id="dpi">
+          <option>150</option><option selected>200</option><option>300</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div><label>Width</label><input id="width" type="number" min="1" step="0.1" value="150"></div>
+      <div><label>Height</label><input id="height" type="number" min="1" step="0.1" value="100"></div>
+    </div>
+    <label class="check"><input id="lock" type="checkbox" checked> Lock source aspect ratio</label>
+  </div>
+
+  <div class="card">
+    <h2>PRINT / TRANSFER</h2>
+    <div class="row">
+      <div>
+        <label>Paper</label>
+        <select id="paper"><option value="letter">Letter 8.5 × 11 in</option><option value="a4">A4</option></select>
+      </div>
+      <div>
+        <label>Orientation</label>
+        <select id="orient"><option>Portrait</option><option>Landscape</option></select>
+      </div>
+    </div>
+    <div class="row">
+      <div><label>Overlap (mm)</label><input id="overlap" type="number" min="0" max="25" step="0.5" value="7"></div>
+      <div><label>JPEG quality</label><input id="quality" type="number" min="60" max="100" step="1" value="92"></div>
+    </div>
+    <label class="check"><input id="mirror" type="checkbox" checked> Mirror horizontally for gel transfer</label>
+  </div>
+
+  <div class="card">
+    <h2>PREVIEW</h2>
+    <canvas id="preview"></canvas>
+    <div id="stats" class="stats" style="margin-top:10px">Choose an image to preview the layout.</div>
+    <div id="warning" class="warn" style="margin-top:8px"></div>
+    <button id="previewBtn" class="secondary" disabled>Preview Layout</button>
+  </div>
+
+  <div class="card">
+    <h2>GENERATE</h2>
+    <div class="warn">For iPhone stability, tiles are rendered one at a time. The app never creates one gigantic master bitmap in memory.</div>
+    <div class="progress"><div id="bar" class="bar"></div></div>
+    <div id="status" class="stats">Ready.</div>
+    <div id="verifyBox" class="stats" style="display:none;margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0d1116"></div>
+    <button id="generate" class="primary" disabled>VERIFY & START</button>
+  </div>
+
+  <footer>
+    Print generated tiles at 100% / Actual Size. Disable Fit-to-Page or automatic scaling.
+    ZIP creation is local and uses no external libraries or network connection.
+  </footer>
+  <div id="confirmModal" class="modal">
+    <div class="modalCard">
+      <h3>Verify job</h3>
+      <div id="confirmText" class="stats"></div>
+      <div class="modalActions">
+        <button id="cancelStart" class="secondary">Cancel</button>
+        <button id="confirmStart" class="primary">START GENERATION</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let image = null, previewImage = null, imageName = "artwork", imageReady = false;
+
+$("file").addEventListener("change", async e => {
+  const f = e.target.files?.[0];
+  if(!f) return;
+
+  image = null;
+  previewImage = null;
+  imageReady = false;
+  $("generate").disabled = true;
+  $("previewBtn").disabled = true;
+  $("loadWrap").style.display = "block";
+  $("loadBar").style.width = "0%";
+  $("loadStatus").textContent = "Preparing preview…";
+  $("status").textContent = "Loading image…";
+  $("warning").textContent = "";
+
+  imageName = f.name.replace(/\.[^.]+$/,"") || "artwork";
+  $("imginfo").textContent = `${f.name}\n${(f.size/1024/1024).toFixed(1)} MB`;
+
+  try{
+    // Stage 1 — fast preview. Request a small decode when supported.
+    try{
+      previewImage = await createImageBitmap(f, {
+        resizeWidth: 900,
+        resizeHeight: 900,
+        resizeQuality: "high"
+      });
+    }catch(_){
+      const url = URL.createObjectURL(f);
+      previewImage = await new Promise((resolve,reject)=>{
+        const im=new Image();
+        im.onload=()=>{ URL.revokeObjectURL(url); resolve(im); };
+        im.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error("Preview decode failed")); };
+        im.src=url;
+      });
+    }
+
+    $("imginfo").textContent =
+      `${f.name}\nPreview ready • ${previewImage.width.toLocaleString()} × ${previewImage.height.toLocaleString()} px`;
+    previewLayout(true);
+    $("previewBtn").disabled = false;
+
+    // Stage 2 — read the full file with visible byte progress.
+    $("loadStatus").textContent = "Loading full-resolution image… 0%";
+    const buffer = await new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onprogress = ev => {
+        if(ev.lengthComputable){
+          const pct = Math.max(1, Math.min(95, Math.round(ev.loaded / ev.total * 95)));
+          $("loadBar").style.width = `${pct}%`;
+          $("loadStatus").textContent = `Loading full-resolution image… ${pct}%`;
+        }
+      };
+      reader.onerror = () => reject(reader.error || new Error("File read failed"));
+      reader.onload = () => resolve(reader.result);
+      reader.readAsArrayBuffer(f);
+    });
+
+    $("loadBar").style.width = "96%";
+    $("loadStatus").textContent = "Decoding full-resolution image… 96%";
+
+    const fullBlob = new Blob([buffer], {type: f.type || "application/octet-stream"});
+    try{
+      image = await createImageBitmap(fullBlob);
+    }catch(_){
+      const url = URL.createObjectURL(fullBlob);
+      image = await new Promise((resolve,reject)=>{
+        const im=new Image();
+        im.onload=()=>{ URL.revokeObjectURL(url); resolve(im); };
+        im.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error("Full-resolution decode failed")); };
+        im.src=url;
+      });
+    }
+
+    imageReady = true;
+    $("loadBar").style.width = "100%";
+    $("loadStatus").innerHTML = '<span class="good">Full-resolution image ready • 100%</span>';
+    $("imginfo").textContent =
+      `${f.name}\n${image.width.toLocaleString()} × ${image.height.toLocaleString()} px • ${(f.size/1024/1024).toFixed(1)} MB`;
+
+    updateAutoHeight();
+    previewLayout(false);
+    $("generate").disabled = false;
+    $("status").textContent = "Ready to generate tiles.";
+  }catch(err){
+    console.error(err);
+    image = null;
+    imageReady = false;
+    $("generate").disabled = true;
+    $("loadBar").style.width = "100%";
+    $("loadStatus").textContent = "Image load failed.";
+    $("status").textContent = "Cannot use this image: " + (err?.message || err);
+    $("warning").textContent =
+      "If this is a HEIC/HEIF photo and Safari refuses to decode it, export/share it as JPEG first, then select that JPEG.";
+  }
+});
+
+["unit","dpi","width","height","lock","paper","orient","overlap","mirror"].forEach(id=>{
+  $(id).addEventListener("change",()=>{ if(id==="width"||id==="unit"||id==="lock") updateAutoHeight(); if(image || previewImage) previewLayout(!imageReady); });
+});
+
+function physical(){
+  const unit=$("unit").value;
+  let w=parseFloat($("width").value)||1;
+  let h=parseFloat($("height").value)||1;
+  if(unit==="cm"){ w/=2.54; h/=2.54; }
+  const dimImg = image || previewImage;
+  if(dimImg && $("lock").checked) h=w/(dimImg.width/dimImg.height);
+  return {w,h};
+}
+
+function updateAutoHeight(){
+  const dimImg = image || previewImage;
+  if(!dimImg || !$("lock").checked) return;
+  const unit=$("unit").value;
+  const w=parseFloat($("width").value)||1;
+  $("height").value=(w/(dimImg.width/dimImg.height)).toFixed(2);
+}
+
+function geometry(){
+  const {w,h}=physical();
+  const dpi=parseInt($("dpi").value,10);
+  const targetW=Math.max(1,Math.round(w*dpi));
+  const targetH=Math.max(1,Math.round(h*dpi));
+  let pw,ph;
+  if($("paper").value==="letter"){pw=8.5;ph=11;}
+  else{pw=210/25.4;ph=297/25.4;}
+  if($("orient").value==="Landscape"){[pw,ph]=[ph,pw];}
+  const pageW=Math.round(pw*dpi), pageH=Math.round(ph*dpi);
+  const overlapPx=Math.round((parseFloat($("overlap").value)||0)/25.4*dpi);
+  const stepW=pageW-overlapPx, stepH=pageH-overlapPx;
+  const cols=Math.ceil(Math.max(1,targetW-overlapPx)/stepW);
+  const rows=Math.ceil(Math.max(1,targetH-overlapPx)/stepH);
+  return {w,h,dpi,targetW,targetH,pageW,pageH,overlapPx,stepW,stepH,cols,rows,total:cols*rows};
+}
+
+function previewLayout(previewOnly=false){
+  const drawImageSource = (!previewOnly && image) ? image : (previewImage || image);
+  if(!drawImageSource)return;
+  const g=geometry();
+  const c=$("preview"), ctx=c.getContext("2d");
+  const maxW=680,maxH=330;
+  const scale=Math.min(maxW/g.targetW,maxH/g.targetH,1);
+  c.width=Math.max(1,Math.round(g.targetW*scale));
+  c.height=Math.max(1,Math.round(g.targetH*scale));
+  c.style.display="block";
+  ctx.fillStyle="#111";ctx.fillRect(0,0,c.width,c.height);
+  if($("mirror").checked){
+    ctx.save();ctx.translate(c.width,0);ctx.scale(-1,1);ctx.drawImage(drawImageSource,0,0,c.width,c.height);ctx.restore();
+  }else ctx.drawImage(drawImageSource,0,0,c.width,c.height);
+  ctx.strokeStyle="white";ctx.lineWidth=1;ctx.font="10px -apple-system";ctx.fillStyle="white";
+  for(let r=0;r<g.rows;r++){
+    for(let col=0;col<g.cols;col++){
+      const x0=col*g.stepW*scale,y0=r*g.stepH*scale;
+      const x1=Math.min(col*g.stepW+g.pageW,g.targetW)*scale;
+      const y1=Math.min(r*g.stepH+g.pageH,g.targetH)*scale;
+      ctx.strokeRect(x0,y0,x1-x0,y1-y0);
+      ctx.fillText(`R${String(r+1).padStart(2,"0")}C${String(col+1).padStart(2,"0")}`,x0+3,y0+11);
+    }
+  }
+  const unit=$("unit").value;
+  const ww=parseFloat($("width").value)||0;
+  const hh=parseFloat($("height").value)||0;
+  $("stats").textContent =
+    `Final size: ${ww.toFixed(1)} × ${hh.toFixed(1)} ${unit}\n`+
+    `Target raster: ${g.targetW.toLocaleString()} × ${g.targetH.toLocaleString()} px\n`+
+    `Grid: ${g.rows} rows × ${g.cols} columns = ${g.total} sheets`;
+  let warn="";
+  if(g.dpi>=300) warn+="300 DPI creates large page images on iPhone. 150–200 DPI is usually safer for large canvas transfer. ";
+  if(g.total>80) warn+=`This job has ${g.total} sheets; ZIP creation may use substantial memory. `;
+  if(g.pageW*g.pageH>9_500_000) warn+="Each tile is very large for mobile Safari. ";
+  $("warning").textContent=warn;
+}
+
+$("previewBtn").addEventListener("click",previewLayout);
+$("generate").addEventListener("click",verifyAndStart);
+$("cancelStart").addEventListener("click",()=>{$("confirmModal").style.display="none";});
+$("confirmStart").addEventListener("click",async()=>{$("confirmModal").style.display="none"; await generateZip();});
+
+
+function verifyAndStart(){
+  $("verifyBox").style.display="block";
+  const problems=[];
+
+  if(!imageReady || !image){
+    problems.push("Full-resolution image is not ready.");
+  }
+
+  let g;
+  try{
+    g=geometry();
+  }catch(e){
+    problems.push("Could not calculate tile geometry.");
+  }
+
+  if(g){
+    if(!Number.isFinite(g.targetW) || !Number.isFinite(g.targetH) || g.targetW<1 || g.targetH<1)
+      problems.push("Invalid final artwork dimensions.");
+    if(g.cols<1 || g.rows<1 || g.total<1)
+      problems.push("Invalid tile grid.");
+    if(g.overlapPx >= g.pageW || g.overlapPx >= g.pageH)
+      problems.push("Overlap is too large for the selected paper.");
+  }
+
+  const q=Math.max(60,Math.min(100,parseInt($("quality").value)||92));
+
+  if(problems.length){
+    $("verifyBox").innerHTML =
+      `<span style="color:#e9a3a3">Verification failed:</span><br>` +
+      problems.map(x=>"• "+x).join("<br>");
+    $("status").textContent="Fix the issues above before starting.";
+    return;
+  }
+
+  const unit=$("unit").value;
+  const fw=parseFloat($("width").value)||0;
+  const fh=parseFloat($("height").value)||0;
+  const estPixels=g.pageW*g.pageH*g.total;
+  const risk = g.total>80 ? "HIGH" : (g.total>40 ? "MEDIUM" : "NORMAL");
+
+  $("verifyBox").innerHTML =
+    `<span class="good">✓ Settings verified</span><br>`+
+    `Image: ${image.width.toLocaleString()} × ${image.height.toLocaleString()} px<br>`+
+    `Artwork: ${fw.toFixed(1)} × ${fh.toFixed(1)} ${unit}<br>`+
+    `Raster target: ${g.targetW.toLocaleString()} × ${g.targetH.toLocaleString()} px<br>`+
+    `Tiles: ${g.rows} × ${g.cols} = ${g.total}<br>`+
+    `DPI: ${g.dpi} • JPEG ${q}% • Memory risk: ${risk}`;
+
+  $("confirmText").innerHTML =
+    `This will create <b>${g.total}</b> numbered ${$("paper").value==="letter"?"Letter":"A4"} tiles.<br><br>`+
+    `Final artwork: <b>${fw.toFixed(1)} × ${fh.toFixed(1)} ${unit}</b><br>`+
+    `DPI: <b>${g.dpi}</b><br>`+
+    `Mirror: <b>${$("mirror").checked?"YES":"NO"}</b><br>`+
+    `Overlap: <b>${parseFloat($("overlap").value)||0} mm</b><br>`+
+    `Estimated mobile load: <b>${risk}</b><br><br>`+
+    `Nothing is uploaded. Processing stays on this device.`;
+
+  $("confirmModal").style.display="flex";
+}
+
+async function canvasToJpegBlob(canvas,q){
+  return await new Promise((resolve,reject)=>{
+    canvas.toBlob(b=>b?resolve(b):reject(new Error("JPEG encoding failed")),"image/jpeg",q/100);
+  });
+}
+
+async function generateZip(){
+  if(!imageReady || !image){
+    $("status").textContent="Full-resolution image is still loading.";
+    return;
+  }
+  const g=geometry();
+  const q=Math.max(60,Math.min(100,parseInt($("quality").value)||92));
+  $("generate").disabled=true;
+  $("bar").style.width="0%";
+  const zip=new SimpleZip();
+  try{
+    for(let r=0;r<g.rows;r++){
+      for(let col=0;col<g.cols;col++){
+        const idx=r*g.cols+col;
+        $("status").textContent=`Rendering tile ${idx+1}/${g.total}…`;
+        $("bar").style.width=`${Math.round(idx/g.total*90)}%`;
+
+        const c=document.createElement("canvas");
+        c.width=g.pageW;c.height=g.pageH;
+        const ctx=c.getContext("2d",{alpha:false});
+        ctx.fillStyle="white";ctx.fillRect(0,0,c.width,c.height);
+        const x0=col*g.stepW, y0=r*g.stepH;
+
+        ctx.save();
+        if($("mirror").checked){
+          ctx.translate(g.targetW-x0,-y0);
+          ctx.scale(-1,1);
+          ctx.drawImage(image,0,0,g.targetW,g.targetH);
+        }else{
+          ctx.drawImage(image,-x0,-y0,g.targetW,g.targetH);
+        }
+        ctx.restore();
+
+        const blob=await canvasToJpegBlob(c,q);
+        const bytes=new Uint8Array(await blob.arrayBuffer());
+        const name=`R${String(r+1).padStart(2,"0")}_C${String(col+1).padStart(2,"0")}.jpg`;
+        zip.add(name,bytes);
+        await new Promise(requestAnimationFrame);
+      }
+    }
+
+    const manifest = {
+      app:"Art Slicer Mobile",
+      source:imageName,
+      target_pixels:[g.targetW,g.targetH],
+      dpi:g.dpi,
+      paper:$("paper").value,
+      orientation:$("orient").value,
+      overlap_mm:parseFloat($("overlap").value)||0,
+      mirrored:$("mirror").checked,
+      rows:g.rows, columns:g.cols, tiles:g.total,
+      print_note:"Print at 100% / Actual Size. Disable Fit-to-Page."
+    };
+    zip.add("README.json",new TextEncoder().encode(JSON.stringify(manifest,null,2)));
+
+    $("status").textContent="Building ZIP…";
+    $("bar").style.width="95%";
+    const out=zip.build();
+    const blob=new Blob([out],{type:"application/zip"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=`${imageName}_tiles.zip`;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    // Verify generated archive contents before reporting success.
+    const expectedFiles = g.total + 1; // tiles + README.json
+    const actualFiles = zip.files.length;
+    const tileFiles = zip.files.filter(f => /^R\d{2}_C\d{2}\.jpg$/i.test(f.name)).length;
+    const verified = (actualFiles === expectedFiles && tileFiles === g.total);
+
+    $("bar").style.width="100%";
+    if(verified){
+      $("status").innerHTML =
+        `<span class="good">✓ VERIFIED COMPLETE</span> • ${g.total} tiles generated and ZIP structure verified.`;
+      $("verifyBox").style.display="block";
+      $("verifyBox").innerHTML =
+        `<span class="good">✓ Generation verified</span><br>`+
+        `Expected tiles: ${g.total}<br>`+
+        `Generated tiles: ${tileFiles}<br>`+
+        `ZIP entries: ${actualFiles}<br>`+
+        `Manifest: present`;
+    }else{
+      $("status").textContent =
+        `Generation finished, but verification failed: expected ${g.total} tiles, found ${tileFiles}.`;
+      $("verifyBox").style.display="block";
+      $("verifyBox").innerHTML =
+        `<span style="color:#e9a3a3">Verification mismatch</span><br>`+
+        `Expected tiles: ${g.total}<br>Generated tiles: ${tileFiles}<br>ZIP entries: ${actualFiles}`;
+    }
+  }catch(err){
+    console.error(err);
+    $("status").textContent="Failed: "+err.message;
+  }finally{
+    $("generate").disabled=false;
+  }
+}
+
+/* Minimal ZIP writer, STORE method (no compression), no external libraries. */
+class SimpleZip{
+  constructor(){this.files=[];}
+  add(name,data){this.files.push({name,data});}
+  build(){
+    const localParts=[], centralParts=[];
+    let offset=0;
+    for(const f of this.files){
+      const nameBytes=new TextEncoder().encode(f.name);
+      const crc=crc32(f.data);
+      const local=new Uint8Array(30+nameBytes.length);
+      const dv=new DataView(local.buffer);
+      dv.setUint32(0,0x04034b50,true);
+      dv.setUint16(4,20,true); dv.setUint16(6,0,true); dv.setUint16(8,0,true);
+      dv.setUint16(10,0,true); dv.setUint16(12,0,true);
+      dv.setUint32(14,crc,true);
+      dv.setUint32(18,f.data.length,true); dv.setUint32(22,f.data.length,true);
+      dv.setUint16(26,nameBytes.length,true); dv.setUint16(28,0,true);
+      local.set(nameBytes,30);
+      localParts.push(local,f.data);
+
+      const cen=new Uint8Array(46+nameBytes.length);
+      const cdv=new DataView(cen.buffer);
+      cdv.setUint32(0,0x02014b50,true);
+      cdv.setUint16(4,20,true); cdv.setUint16(6,20,true);
+      cdv.setUint16(8,0,true); cdv.setUint16(10,0,true);
+      cdv.setUint16(12,0,true); cdv.setUint16(14,0,true);
+      cdv.setUint32(16,crc,true);
+      cdv.setUint32(20,f.data.length,true); cdv.setUint32(24,f.data.length,true);
+      cdv.setUint16(28,nameBytes.length,true);
+      cdv.setUint16(30,0,true); cdv.setUint16(32,0,true);
+      cdv.setUint16(34,0,true); cdv.setUint16(36,0,true);
+      cdv.setUint32(38,0,true); cdv.setUint32(42,offset,true);
+      cen.set(nameBytes,46);
+      centralParts.push(cen);
+      offset += local.length + f.data.length;
+    }
+    const centralSize=centralParts.reduce((n,p)=>n+p.length,0);
+    const end=new Uint8Array(22);
+    const edv=new DataView(end.buffer);
+    edv.setUint32(0,0x06054b50,true);
+    edv.setUint16(4,0,true);edv.setUint16(6,0,true);
+    edv.setUint16(8,this.files.length,true);edv.setUint16(10,this.files.length,true);
+    edv.setUint32(12,centralSize,true);edv.setUint32(16,offset,true);edv.setUint16(20,0,true);
+    return new Blob([...localParts,...centralParts,end],{type:"application/zip"});
+  }
+}
+
+const CRC_TABLE=(()=>{
+  const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){
+    let c=n;
+    for(let k=0;k<8;k++) c=(c&1)?(0xedb88320^(c>>>1)):(c>>>1);
+    t[n]=c>>>0;
+  }
+  return t;
+})();
+function crc32(bytes){
+  let c=0xffffffff;
+  for(let i=0;i<bytes.length;i++) c=CRC_TABLE[(c^bytes[i])&0xff]^(c>>>8);
+  return (c^0xffffffff)>>>0;
+}
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
